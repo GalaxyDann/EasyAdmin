@@ -231,6 +231,8 @@ local eastereggs = {
 	}
 }
 
+
+
 function generateTextures()
 	if not RedM and not txd or (overrideEgg ~= currentEgg) then
 		if dui then
@@ -293,6 +295,143 @@ function generateTextures()
 		end
 	end
 end
+
+RegisterNetEvent("EasyAdmin:R:History", function(pid, pname, remove)
+	GenerateHistoryMenu(pid, pname, remove)
+end)
+
+function CurrentDate(z)
+	local z = math.floor(z / 86400) + 719468
+	local era = math.floor(z / 146097)
+	local doe = math.floor(z - era * 146097)
+	local yoe = math.floor((doe - doe / 1460 + doe / 36524 - doe / 146096) / 365)
+	local y = math.floor(yoe + era * 400)
+	local doy = doe - math.floor((365 * yoe + yoe / 4 - yoe / 100))
+	local mp = math.floor((5 * doy + 2) / 153)
+	local d = math.ceil(doy - (153 * mp + 2) / 5 + 1)
+	local m = math.floor(mp + (mp < 10 and 3 or -9))
+	return y + (m <= 2 and 1 or 0), m, d
+end
+
+function CurrentTime(hoursOffset)
+	local unixTime = math.floor(hoursOffset)
+
+	local hours = math.floor(unixTime / 3600 % 24)
+	local minutes = math.floor(unixTime / 60 % 60)
+	local seconds = math.floor(unixTime % 60)
+
+	local year, month, day = CurrentDate(unixTime)
+
+	return {
+		year = year,
+		month = month, 
+		day = day,
+		hours = hours,
+		minutes = minutes < 10 and "0" .. minutes or minutes,
+		seconds = seconds < 10 and "0" .. seconds or seconds
+	}
+end
+
+function GenerateHistoryMenu(pid, pname, allEntry)
+
+	generateTextures()
+	TriggerServerEvent("EasyAdmin:requestCachedPlayers")
+	if _menuPool then
+		_menuPool:Remove()
+		TriggerEvent("EasyAdmin:MenuRemoved")
+		collectgarbage()
+	end
+	_menuPool = NativeUI.CreatePool()
+	collectgarbage()
+	if not GetResourceKvpString("ea_menuorientation") then
+		SetResourceKvp("ea_menuorientation", "middle")
+		SetResourceKvpInt("ea_menuwidth", 0)
+		menuWidth = 0
+		menuOrientation = handleOrientation("middle")
+	else
+		menuWidth = GetResourceKvpInt("ea_menuwidth")
+		menuOrientation = handleOrientation(GetResourceKvpString("ea_menuorientation"))
+	end 
+	maxRightTextWidth = math.floor((24+(menuWidth*0.12)))
+	local subtitle = "(HISTORY) ["..pid.."] "..pname
+	mainMenu = NativeUI.CreateMenu("Punishment History", subtitle, menuOrientation, 0, "easyadmin", "banner-gradient", "logo")
+	_menuPool:Add(mainMenu)
+	
+	_menuPool:ControlDisablingEnabled(false)
+	_menuPool:MouseControlsEnabled(false)
+	
+	for i,e in pairs(allEntry) do
+		entry = _menuPool:AddSubMenu(mainMenu, "["..e["punishid"].."] "..e["type"].." for "..e["reason"],"",true, true)
+		entry:SetMenuWidthOffset(menuWidth)	
+		
+		local idd = NativeUI.CreateItem("Punishment ID",e["punishid"])
+		entry:AddItem(idd)
+		idd:RightLabel(e["punishid"])
+		idd.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["punishid"])
+		end
+		
+		local typ = NativeUI.CreateItem("Type",e["type"])
+		entry:AddItem(typ)
+		typ:RightLabel(e["type"])
+		typ.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["type"])
+		end
+		
+		local dur = NativeUI.CreateItem("Expires",e["duration"])
+		entry:AddItem(dur)
+		dur:RightLabel(e["duration"])
+		dur.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["duration"])
+		end
+		
+		local reas = NativeUI.CreateItem("Reason",e["reason"])
+		entry:AddItem(reas)
+		reas:RightLabel(e["reason"])
+		reas.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["reason"])
+		end
+		
+		local exec = NativeUI.CreateItem("Executor",e["executor"])
+		entry:AddItem(exec)
+		exec:RightLabel(e["executor"])
+		exec.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["executor"])
+		end
+		
+		local baid = NativeUI.CreateItem("Ban ID",e["banid"])
+		entry:AddItem(baid)
+		baid:RightLabel(e["banid"])
+		baid.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["banid"])
+		end
+		
+		local date = CurrentTime(tonumber(e["timestamp"]))
+		
+		local tsmpta = date.month .. "/" .. date.day .. "/" .. date.year .. " " .. date.hours .. ":" .. date.minutes .. ":" .. date.seconds
+
+		if tonumber(e["timestamp"]) == 0 then
+			tsmpta = "Prior to 5/12/2023"
+		end
+
+		local tstm = NativeUI.CreateItem("Timestamp [UTC]", tsmpta)
+		entry:AddItem(tstm)
+		tstm:RightLabel(tsmpta)
+		tstm.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(tsmpta)
+		end
+		
+		local lid = NativeUI.CreateItem("Linked ID",e["discord"])
+		entry:AddItem(lid)
+		lid:RightLabel(e["discord"])
+		lid.Activated = function(ParentMenu, SelectedItem)
+			copyToClipboard(e["discord"])
+		end
+	end
+
+	mainMenu:Visible(true)
+end
+
 
 function GenerateMenu() -- this is a big ass function
 
@@ -464,7 +603,12 @@ function GenerateMenu() -- this is a big ass function
 					name = GetPlayerName(thePlayer)
 				}
 			end
-			local thisPlayerMenu = _menuPool:AddSubMenu(playermanagement,"["..thePlayer.id.."] "..thePlayer.name,"",true)
+			local thisPlayerMenu
+			if thePlayer.staff then
+				thisPlayerMenu = _menuPool:AddSubMenu(playermanagement,"[STAFF] ".."["..thePlayer.id.."] "..thePlayer.name,"",true)
+			else 
+				thisPlayerMenu = _menuPool:AddSubMenu(playermanagement,"["..thePlayer.id.."] "..thePlayer.name,"",true)
+			end
 			if not RedM and thePlayer.developer then
 				thisPlayerMenu.ParentItem:SetRightBadge(23)
 			elseif not RedM and thePlayer.contributor then 
@@ -479,7 +623,14 @@ function GenerateMenu() -- this is a big ass function
 				
 
 				if not playerMenus[tostring(thePlayer.id)].generated then
-				
+					local tsiep = NativeUI.CreateItem("Staff Status", "User staff Status")
+					thisPlayer:AddItem(tsiep)
+					if thePlayer.staff then
+						tsiep:RightLabel("¦ Staff")
+					else
+						tsiep:RightLabel("Not Staff")
+					end
+
 					if permissions["player.kick"] then
 						local thisKickMenu = _menuPool:AddSubMenu(thisPlayer,GetLocalisedText("kickplayer"),"",true)
 						thisKickMenu:SetMenuWidthOffset(menuWidth)
@@ -508,6 +659,61 @@ function GenerateMenu() -- this is a big ass function
 								KickReason = GetLocalisedText("noreason")
 							end
 							TriggerServerEvent("EasyAdmin:kickPlayer", thePlayer.id, KickReason)
+							_menuPool:CloseAllMenus()
+							Citizen.Wait(800)
+							GenerateMenu()
+							playermanagement:Visible(true)
+						end	
+					end
+				
+					if permissions["player.kick"] then
+						local thisKickMenu = _menuPool:AddSubMenu(thisPlayer,"Send to Comms","",true)
+						thisKickMenu:SetMenuWidthOffset(menuWidth)
+		
+						local thisItem = NativeUI.CreateItem(GetLocalisedText("reason"),"Add a reason to the comms.")
+						thisKickMenu:AddItem(thisItem)
+						KickReason = GetLocalisedText("noreason")
+						thisItem:RightLabel(KickReason)
+						thisItem.Activated = function(ParentMenu,SelectedItem)
+							local result = displayKeyboardInput("FMMC_KEY_TIP8", "", 128)
+							local formattedResult = formatRightString(formatShortcuts(result))
+							
+							
+							if result and result ~= "" then
+								KickReason = result
+								thisItem:RightLabel(formattedResult)
+							else
+								KickReason = GetLocalisedText("noreason")
+							end
+						end
+
+						local thisItem = NativeUI.CreateItem("Amount","Set amount of comms.")
+						thisKickMenu:AddItem(thisItem)
+						Comms = "15"
+						thisItem:RightLabel(Comms)
+						thisItem.Activated = function(ParentMenu,SelectedItem)
+							local result = displayKeyboardInput("FMMC_KEY_TIP8", "", 128)
+							local formattedResult = formatRightString(formatShortcuts(result))
+							
+							
+							if result and result ~= "" then
+								Comms = result
+								thisItem:RightLabel(formattedResult)
+							else
+								Comms = "15"
+							end
+						end
+						
+						local thisItem = NativeUI.CreateItem("Confirm Comms","Confirm sending this player to comms.")
+						thisKickMenu:AddItem(thisItem)
+						thisItem.Activated = function(ParentMenu,SelectedItem)
+							if KickReason == "" then
+								KickReason = GetLocalisedText("noreason")
+							end
+							if Comms == "" then
+								Comms = "15"
+							end
+							TriggerServerEvent("Dan:SendToComms", thePlayer.id, Comms, KickReason)
 							_menuPool:CloseAllMenus()
 							Citizen.Wait(800)
 							GenerateMenu()
@@ -775,6 +981,16 @@ function GenerateMenu() -- this is a big ass function
 							GenerateMenu()
 							playermanagement:Visible(true)
 						end	
+					end
+
+					
+					if permissions["player.warn"] then
+						local thisItem = NativeUI.CreateItem("View Punishment History","")
+						thisPlayer:AddItem(thisItem)
+						thisItem.Activated = function(ParentMenu, SelectedItem)
+							-- GenerateHistoryMenu()
+							TriggerServerEvent("EasyAdmin:History", thePlayer.id)
+						end
 					end
 		
 		

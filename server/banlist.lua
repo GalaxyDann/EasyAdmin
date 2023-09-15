@@ -15,6 +15,7 @@ blacklist = {}
 RegisterServerEvent("EasyAdmin:banPlayer", function(playerId,reason,expires)
     if playerId ~= nil then
         if (DoesPlayerHavePermission(source, "player.ban.temporary") or DoesPlayerHavePermission(source, "player.ban.permanent")) and CachedPlayers[playerId] and not CachedPlayers[playerId].immune then
+            local trreason = reason
             local bannedIdentifiers = CachedPlayers[playerId].identifiers or getAllPlayerIdentifiers(playerId)
             local username = CachedPlayers[playerId].name or getName(playerId, true)
             if expires and expires < os.time() then
@@ -26,12 +27,45 @@ RegisterServerEvent("EasyAdmin:banPlayer", function(playerId,reason,expires)
                 return false
             end
             
+            local exp = expires
+			local name = getName(source, true)
+
+            local baid = GetFreshBanId()
+
+			MySQL.ready(function() 
+				local steamid  = ""
+				local license  = ""
+				local discord  = ""
+                local discord2 = ""
+				local xbl      = ""
+				local liveid   = ""
+				local ip       = ""
+				
+				for k,v in pairs(bannedIdentifiers)do					
+					if string.sub(v, 1, string.len("steam:")) == "steam:" then
+						steamid = v
+					elseif string.sub(v, 1, string.len("license:")) == "license:" then
+						license = v
+					elseif string.sub(v, 1, string.len("xbl:")) == "xbl:" then
+						xbl  = v
+					elseif string.sub(v, 1, string.len("ip:")) == "ip:" then
+						ip = v
+					elseif string.sub(v, 1, string.len("discord:")) == "discord:" then
+						discord = v
+					elseif string.sub(v, 1, string.len("live:")) == "live:" then
+						liveid = v
+					end
+				end
+				MySQL.Async.execute("INSERT INTO `punishments` (`punishid`, `timestamp`, `banid`, `steam`, `license`, `discord`, `ip`, `reason`, `executor`, `type`, `duration`, `evidence`) VALUES (NULL, '"..os.time().."', '"..baid.."', '"..steamid.."', '"..license.."', '"..discord.."', '"..ip.."', '"..trreason.."', '"..name.."', 'BAN', '"..formatDateString(expires).."', 'N/A')")
+                Citizen.Wait(1000)
+                DropPlayer(playerId, string.format(GetLocalisedText("banned"), reason, formatDateString( exp ) ) )
+			end)
+
             reason = formatShortcuts(reason).. string.format(GetLocalisedText("reasonadd"), CachedPlayers[playerId].name, getName(source) )
-            local ban = {banid = GetFreshBanId(), name = username,identifiers = bannedIdentifiers, banner = getName(source, true), reason = reason, expire = expires, expireString = formatDateString(expires) }
+            local ban = {banid = baid, name = username,identifiers = bannedIdentifiers, banner = getName(source, true), reason = reason, expire = expires, expireString = formatDateString(expires) }
             updateBlacklist( ban )
             PrintDebugMessage("Player "..getName(source,true).." banned player "..CachedPlayers[playerId].name.." for "..reason, 3)
             SendWebhookMessage(moderationNotification,string.format(GetLocalisedText("adminbannedplayer"), getName(source, false, true), CachedPlayers[playerId].name, reason, formatDateString( expires ), tostring(ban.banid) ), "ban", 16711680)
-            DropPlayer(playerId, string.format(GetLocalisedText("banned"), reason, formatDateString( expires ) ) )
         elseif CachedPlayers[playerId].immune then
             TriggerClientEvent("EasyAdmin:showNotification", source, GetLocalisedText("adminimmune"))
         end
@@ -41,6 +75,7 @@ end)
 RegisterServerEvent("EasyAdmin:offlinebanPlayer", function(playerId,reason,expires)
     if playerId ~= nil and not CachedPlayers[playerId].immune then
         if (DoesPlayerHavePermission(source, "player.ban.temporary") or DoesPlayerHavePermission(source, "player.ban.permanent")) and not CachedPlayers[playerId].immune then
+            local trreason = reason
             local bannedIdentifiers = CachedPlayers[playerId].identifiers or getAllPlayerIdentifiers(playerId)
             local username = CachedPlayers[playerId].name or getName(playerId, true)
             if expires and expires < os.time() then
@@ -51,9 +86,39 @@ RegisterServerEvent("EasyAdmin:offlinebanPlayer", function(playerId,reason,expir
             if expires >= 10444633200 and not DoesPlayerHavePermission(source, "player.ban.permanent") then
                 return false
             end
+
+			local name = getName(source, true)
+            local baid = GetFreshBanId()
             
+			MySQL.ready(function() 
+				local steamid  = ""
+				local license  = ""
+				local discord  = ""
+                local discord2 = ""
+				local xbl      = ""
+				local liveid   = ""
+				local ip       = ""
+
+				for k,v in pairs(bannedIdentifiers) do					
+					if string.sub(v, 1, string.len("steam:")) == "steam:" then
+						steamid = v
+					elseif string.sub(v, 1, string.len("license:")) == "license:" then
+						license = v
+					elseif string.sub(v, 1, string.len("xbl:")) == "xbl:" then
+						xbl  = v
+					elseif string.sub(v, 1, string.len("ip:")) == "ip:" then
+						ip = v
+					elseif string.sub(v, 1, string.len("discord:")) == "discord:" then
+						discord = v
+					elseif string.sub(v, 1, string.len("live:")) == "live:" then
+						liveid = v
+					end
+				end
+				MySQL.Async.execute("INSERT INTO `punishments` (`punishid`, `timestamp`, `banid`, `steam`, `license`, `discord`, `ip`, `reason`, `executor`, `type`, `duration`, `evidence`) VALUES (NULL, '"..os.time().."', '"..baid.."', '"..steamid.."', '"..license.."', '"..discord.."', '"..ip.."', '"..trreason.."', '"..name.."', 'BAN', '"..formatDateString(expires).."', 'N/A')")
+			end)
+
             reason = formatShortcuts(reason).. string.format(GetLocalisedText("reasonadd"), CachedPlayers[playerId].name, getName(source) )
-            local ban = {banid = GetFreshBanId(), name = username,identifiers = bannedIdentifiers, banner = getName(source), reason = reason, expire = expires }
+            local ban = {banid = baid, name = username,identifiers = bannedIdentifiers, banner = getName(source), reason = reason, expire = expires }
             updateBlacklist( ban )
             PrintDebugMessage("Player "..getName(source,true).." offline banned player "..CachedPlayers[playerId].name.." for "..reason, 3)
             SendWebhookMessage(moderationNotification,string.format(GetLocalisedText("adminofflinebannedplayer"), getName(source, false, true), CachedPlayers[playerId].name, reason, formatDateString( expires ) ), "ban", 16711680)

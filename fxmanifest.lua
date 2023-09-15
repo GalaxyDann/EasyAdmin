@@ -4,8 +4,7 @@ games {"rdr3","gta5"}
 
 author 'Blumlaut <blue@furfag.de>'
 description 'EasyAdmin - Admin Menu for FiveM & RedM'
-version '7.02'
-is_master 'yes'
+version '7.0'
 
 
 lua54 'yes'
@@ -15,6 +14,7 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 shared_script 'shared/util_shared.lua'
 
 server_scripts {
+    "@mysql-async/lib/MySQL.lua",
     "server/*.lua",
     "server/bot/*.js",
     "plugins/**/*_shared.lua",
@@ -85,7 +85,6 @@ convar_category 'EasyAdmin' {
         { "Token for Discord bot", "$ea_botToken", "CV_STRING", "none" },
         { "Channel for Discord bot to log", "$ea_botLogChannel", "CV_STRING", "none" },
         { "Channel for Discord bot to enable live status", "$ea_botStatusChannel", "CV_STRING", "true" },
-        { "Enable Allowlist", "$ea_enableAllowlist", "CV_BOOL", "false" },
-        { "Disable Shooting Whilst Frozen", "$ea_disableShootingWhileFrozen", "CV_BOOL", "false" },
+        { "Enable Allowlist", "$ea_enableAllowlist", "CV_BOOL", "false" }
     }
 }

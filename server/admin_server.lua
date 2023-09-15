@@ -11,6 +11,42 @@
 ------------------------------------
 
 -- Chat Reminder Code
+
+MySQL.ready(function ()
+	print("MySQL Setup")
+	MySQL.Async.execute("CREATE TABLE IF NOT EXISTS `punishments` (`punishid` INT(255) NOT NULL AUTO_INCREMENT , `timestamp` VARCHAR(255) NOT NULL , `banid` VARCHAR(255) NOT NULL , `steam` VARCHAR(255) NOT NULL , `license` VARCHAR(255) NOT NULL , `discord` VARCHAR(255) NOT NULL , `ip` VARCHAR(255) NOT NULL , `reason` VARCHAR(255) NOT NULL , `executor` VARCHAR(255) NOT NULL , `type` VARCHAR(255) NOT NULL , `duration` VARCHAR(255) NOT NULL, `evidence` VARCHAR(255) NOT NULL, PRIMARY KEY (punishid)) ENGINE = InnoDB;")
+end)
+
+function wait(millisecond)
+	local ostime_vrbl = os.time() + millisecond
+end
+
+RegisterServerEvent("EasyAdmin:History", function(playerId)
+	if IsPlayerAdmin(source) then
+		local steamid  = ""
+		local license  = ""
+		local discord  = ""
+		
+		for k,v in pairs(GetPlayerIdentifiers(playerId))do
+			if string.sub(v, 1, string.len("steam:")) == "steam:" then
+				steamid = v
+			elseif string.sub(v, 1, string.len("license:")) == "license:" then
+				license = v
+			elseif string.sub(v, 1, string.len("discord:")) == "discord:" then
+				discord = v
+			end
+			
+		end
+
+		local s = source
+
+		MySQL.Async.fetchAll("SELECT * FROM punishments WHERE discord = '"..discord.."'", {}, function(result)
+			TriggerClientEvent("EasyAdmin:R:History", s, playerId, getName(playerId, true), result)
+		end)
+	end
+end)
+
+
 function sendRandomReminder()
 	reminderTime = GetConvarInt("ea_chatReminderTime", 0)
 	if reminderTime ~= 0 and #ChatReminders > 0 then
@@ -144,6 +180,7 @@ RegisterServerEvent("EasyAdmin:GetInfinityPlayerList", function()
 						elseif v == "discord:736521574383091722" --[[ Jaccosf ]] or v == "discord:1001065851790839828" --[[ robbybaseplate ]] or v == "discord:840695262460641311" --[[ Knight ]] or v == "discord:270731163822325770" --[[ Skypo ]] or v == "discord:186980021850734592" --[[ coleminer0112 ]] then
 							pData.contributor = true
 						end
+						pData.staff = IsPlayerAdmin(player)
 					end
 					table.insert(l, pData)
 				end
@@ -281,9 +318,35 @@ Citizen.CreateThread(function()
 	RegisterServerEvent("EasyAdmin:kickPlayer", function(playerId,reason)
 		if DoesPlayerHavePermission(source, "player.kick") and not CachedPlayers[playerId].immune then
 			reason = formatShortcuts(reason)
+			local name = getName(source, true)
+			MySQL.ready(function() 
+				local steamid  = ""
+				local license  = ""
+				local discord  = ""
+				local xbl      = ""
+				local liveid   = ""
+				local ip       = ""
+
+				for k,v in pairs(GetPlayerIdentifiers(playerId))do					
+					if string.sub(v, 1, string.len("steam:")) == "steam:" then
+						steamid = v
+					elseif string.sub(v, 1, string.len("license:")) == "license:" then
+						license = v
+					elseif string.sub(v, 1, string.len("xbl:")) == "xbl:" then
+						xbl  = v
+					elseif string.sub(v, 1, string.len("ip:")) == "ip:" then
+						ip = v
+					elseif string.sub(v, 1, string.len("discord:")) == "discord:" then
+						discord = v
+					elseif string.sub(v, 1, string.len("live:")) == "live:" then
+						liveid = v
+					end
+				end
+				MySQL.Async.execute("INSERT INTO `punishments` (`punishid`, `timestamp`, `banid`, `steam`, `license`, `discord`, `ip`, `reason`, `executor`, `type`, `duration`, `evidence`) VALUES (NULL, '"..os.time().."', 'N/A', '"..steamid.."', '"..license.."', '"..discord.."', '"..ip.."', '"..reason.."', '"..name.."', 'KICK', 'N/A', 'N/A')")
+				DropPlayer(playerId, string.format(GetLocalisedText("kicked"), name, reason) )
+			end)
 			SendWebhookMessage(moderationNotification,string.format(GetLocalisedText("adminkickedplayer"), getName(source, false, true), getName(playerId, true, true), reason), "kick", 16711680)
 			PrintDebugMessage("Kicking Player "..getName(source, true).." for "..reason, 3)
-			DropPlayer(playerId, string.format(GetLocalisedText("kicked"), getName(source), reason) )
 		elseif CachedPlayers[playerId].immune then
 			TriggerClientEvent("EasyAdmin:showNotification", source, GetLocalisedText("adminimmune"))
 		end
@@ -673,12 +736,38 @@ Citizen.CreateThread(function()
 			if not WarnedPlayers[id] then
 				WarnedPlayers[id] = {name = getName(id, true), identifiers = getAllPlayerIdentifiers(id), warns = 0}
 			end
+			local name = getName(source, true)
+			MySQL.ready(function() 
+				local steamid  = ""
+				local license  = ""
+				local discord  = ""
+				local xbl      = ""
+				local liveid   = ""
+				local ip       = ""
+
+				for k,v in pairs(GetPlayerIdentifiers(id))do					
+					if string.sub(v, 1, string.len("steam:")) == "steam:" then
+						steamid = v
+					elseif string.sub(v, 1, string.len("license:")) == "license:" then
+						license = v
+					elseif string.sub(v, 1, string.len("xbl:")) == "xbl:" then
+						xbl  = v
+					elseif string.sub(v, 1, string.len("ip:")) == "ip:" then
+						ip = v
+					elseif string.sub(v, 1, string.len("discord:")) == "discord:" then
+						discord = v
+					elseif string.sub(v, 1, string.len("live:")) == "live:" then
+						liveid = v
+					end
+				end
+				MySQL.Async.execute("INSERT INTO `punishments` (`punishid`, `timestamp`, `banid`, `steam`, `license`, `discord`, `ip`, `reason`, `executor`, `type`, `duration`, `evidence`) VALUES (NULL, '"..os.time().."', 'N/A', '"..steamid.."', '"..license.."', '"..discord.."', '"..ip.."', '"..reason.."', '"..name.."', 'WARN', 'N/A', 'N/A')")
+			end)
 			WarnedPlayers[id].warns = WarnedPlayers[id].warns+1
 			TriggerClientEvent('chat:addMessage', id, { 
 				template = '<div style="padding: 0.5vw; margin: 0.5vw; background-color: rgba(253, 53, 53, 0.6); border-radius: 5px;"><i class="fas fa-user-crown"></i> {0} </div>',
 				args = {  string.format(GetLocalisedText("warned"), reason, WarnedPlayers[id].warns, maxWarnings) }, color = { 255, 255, 255 } 
 			})
-			TriggerClientEvent("txcl:showWarning", id, getName(src), string.format(GetLocalisedText("warned"), reason, WarnedPlayers[id].warns, maxWarnings), GetLocalisedText("warnedtitle"), GetLocalisedText("warnedby"),GetLocalisedText("warndismiss"))
+			TriggerClientEvent("txAdminClient:warn", id, getName(src), string.format(GetLocalisedText("warned"), reason, WarnedPlayers[id].warns, maxWarnings), GetLocalisedText("warnedtitle"), GetLocalisedText("warnedby"),GetLocalisedText("warndismiss"))
 			SendWebhookMessage(moderationNotification,string.format(GetLocalisedText("adminwarnedplayer"), getName(src, false, true), getName(id, true, true), reason, WarnedPlayers[id].warns, maxWarnings), "warn", 16711680)
 			if WarnedPlayers[id].warns >= maxWarnings then
 				if GetConvar("ea_warnAction", "kick") == "kick" then
@@ -720,7 +809,7 @@ Citizen.CreateThread(function()
 				args = {  string.format(GetLocalisedText("warned"), reason, WarnedPlayers[id].warns, maxWarnings) }, color = { 255, 255, 255 } 
 			})
 			SendWebhookMessage(moderationNotification,string.format(GetLocalisedText("adminwarnedplayer"), src, getName(id, true, true), reason, WarnedPlayers[id].warns, maxWarnings), "warn", 16711680)
-			TriggerClientEvent("txcl:showWarning", id, src, string.format(GetLocalisedText("warned"), reason, WarnedPlayers[id].warns, maxWarnings), GetLocalisedText("warnedtitle"), GetLocalisedText("warnedby"),GetLocalisedText("warndismiss"))
+			TriggerClientEvent("txAdminClient:warn", id, src, string.format(GetLocalisedText("warned"), reason, WarnedPlayers[id].warns, maxWarnings), GetLocalisedText("warnedtitle"), GetLocalisedText("warnedby"),GetLocalisedText("warndismiss"))
 			if WarnedPlayers[id].warns >= maxWarnings then
 				if GetConvar("ea_warnAction", "kick") == "kick" then
 					SendWebhookMessage(moderationNotification,string.format(GetLocalisedText("adminkickedplayer"), src, getName(id, true, true), reason), "kick", 16711680)
@@ -855,7 +944,7 @@ Citizen.CreateThread(function()
 		for bi,blacklisted in ipairs(blacklist) do
 			if showProgress == "true" then
 				local percentage = math.round(bi/#blacklist*100)
-				if bi % 12 == 0 and percentage >= lastPercentage+4 then -- only update on every 12th ban
+				if bi % 12 == 0 and percentage >= lastPercentage+4 then -- only update on every 12th `
 					Wait(0)
 					deferrals.update(string.format(GetLocalisedText("deferral"), percentage))
 					lastPercentage = percentage
